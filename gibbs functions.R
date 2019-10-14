@@ -1,4 +1,4 @@
-sample.coord=function(ac.coord,jump,dat,grid.coord,z,n.ac){
+sample.coord=function(ac.coord,jump,dat,grid.coord,z,n.ac,n.grid,phi){
   ac.coord.orig=ac.coord.old=ac.coord
   for (i in 1:n.ac){
     for (j in 1:2){ #to sample each coordinate separately
@@ -12,8 +12,8 @@ sample.coord=function(ac.coord,jump,dat,grid.coord,z,n.ac){
                              n.grid=n.grid,n.ac=n.ac)
 
       #get loglikel
-      pold=get.loglikel(dist1=dist1.old,dat=dat,z=z,n.ac=n.ac,phi=phi)
-      pnew=get.loglikel(dist1=dist1.new,dat=dat,z=z,n.ac=n.ac,phi=phi)
+      pold=get.loglikel(dist1=dist1.old,dat=dat,z=z,n.ac=n.ac,phi=phi,n.grid=n.grid)
+      pnew=get.loglikel(dist1=dist1.new,dat=dat,z=z,n.ac=n.ac,phi=phi,n.grid=n.grid)
       
       #accept or reject MH
       k=acceptMH(p0=pold,p1=pnew,x0=ac.coord.old[i,j],x1=ac.coord.new[i,j],BLOCK=F)      
@@ -29,15 +29,16 @@ sample.phi=function(ac.coord,grid.coord,n.grid,n.ac,phi,jump,dat,z){
   new=abs(rnorm(1,mean=old,sd=jump)) #reflection proposal around zero
   
   #get loglikel
-  pold=get.loglikel(dist1=dist1,dat=dat,z=z,n.ac=n.ac,phi=old)
-  pnew=get.loglikel(dist1=dist1,dat=dat,z=z,n.ac=n.ac,phi=new)
+  pold=get.loglikel(dist1=dist1,dat=dat,z=z,n.ac=n.ac,phi=old,n.grid=n.grid)
+  pnew=get.loglikel(dist1=dist1,dat=dat,z=z,n.ac=n.ac,phi=new,n.grid=n.grid)
   
   #accept or reject MH
-  k=acceptMH(p0=pold,p1=pnew,x0=old,x1=new,BLOCK=F)      
-  list(phi=k$x,accept=k$accept)
+  k=acceptMH(p0=pold,p1=pnew,x0=old,x1=new,BLOCK=F)  
+  logl=ifelse(k$accept==1,pnew,pold)
+  list(phi=k$x,accept=k$accept,logl=logl)
 }
 #-----------------------------------
-sample.z=function(ac.coord,grid.coord,n.grid,n.ac,n.tsegm,dat){
+sample.z=function(ac.coord,grid.coord,n.grid,n.ac,n.tsegm,dat,phi){
   #get distance
   dist1=get.distance(ac.coord=ac.coord,grid.coord=grid.coord,n.grid=n.grid,n.ac=n.ac)
   
@@ -69,15 +70,18 @@ get.distance=function(ac.coord,grid.coord,n.grid,n.ac){
   res
 }
 #-----------------------------------
-get.loglikel=function(dist1,dat,z,n.ac,phi){
-  res=rep(NA,n.ac)
+get.loglikel=function(dist1,dat,z,n.ac,phi,n.grid){
+  res=rep(0,n.ac)
   for (i in 1:n.ac){
     cond=z==i
-    dat1=dat[cond,]
-    dist2=dist1[,i]
-    prob=exp(-phi*dist2)
-    prob1=matrix(prob/sum(prob),sum(cond),n.grid,byrow=T)
-    res[i]=sum(dat1*log(prob1))
+    n=sum(cond)
+    if (n!=0){
+      dat1=dat[cond,]
+      dist2=dist1[,i]
+      prob=exp(-phi*dist2)
+      prob1=matrix(prob/sum(prob),n,n.grid,byrow=T)
+      res[i]=sum(dat1*log(prob1))
+    }
   }
   sum(res)
 }
