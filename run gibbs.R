@@ -1,5 +1,5 @@
 rm(list=ls(all=TRUE))
-set.seed(100)
+set.seed(10)
 
 #read important functions
 setwd('U:\\GIT_models\\activity_center1')
@@ -15,7 +15,8 @@ grid.coord=read.csv('fake data grid.csv',as.is=T)
 #basic setup
 ngibbs=1000
 nburn=ngibbs/2
-n.ac=3
+n.ac=10
+gamma1=0.1
 
 #initial coordinates (define this based on data instead of uninformative as below)
 ac.coord.init=data.frame(x=runif(n.ac,min=0,max=100),
@@ -24,4 +25,4 @@ ac.coord.init=data.frame(x=runif(n.ac,min=0,max=100),
 #run gibbs sampler
 options(warn=2)
 res=gibbs.activity.center(dat=dat,grid.coord=grid.coord,n.ac=n.ac,
-                          ac.coord.init=ac.coord.init)
+                          ac.coord.init=ac.coord.init,gamma1=gamma1)

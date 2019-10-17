@@ -1,22 +1,21 @@
-gibbs.activity.center=function(dat,grid.coord,n.ac,ac.coord.init){
+gibbs.activity.center=function(dat,grid.coord,n.ac,ac.coord.init,gamma1){
   #basic setup
   n.tsegm=nrow(dat)
   n.grid=nrow(grid.coord)
-
+  grid.coord=data.matrix(grid.coord)
+  
   #initial values
-  ac.coord=ac.coord.init
-  
-  #cluster membership
-  z=sample(1:n.ac,size=n.tsegm,replace=T)
-  
-  #distance decay parameter
-  phi=0.0001
+  ac.coord=data.matrix(ac.coord.init)
+  z=sample(1:n.ac,size=n.tsegm,replace=T) #cluster membership
+  phi=0.0001 #distance decay parameter
+  theta=rep(1/n.ac,n.ac)
   
   #matrices to store results
   store.coord=matrix(NA,ngibbs,n.ac*2)
   store.z=matrix(NA,ngibbs,n.tsegm)
   store.param=matrix(NA,ngibbs,1) #to store phi
   store.logl=matrix(NA,ngibbs,1)
+  store.theta=matrix(NA,ngibbs,n.ac)
   
   #MH stuff
   adaptMH=50
@@ -44,14 +43,38 @@ gibbs.activity.center=function(dat,grid.coord,n.ac,ac.coord.init){
     
     #sample z
     z=sample.z(ac.coord=ac.coord,grid.coord=grid.coord,phi=phi,
-               n.grid=n.grid,n.ac=n.ac,n.tsegm=n.tsegm,dat=dat)
+               n.grid=n.grid,n.ac=n.ac,n.tsegm=n.tsegm,dat=dat,
+               log.theta=log(theta))
     # z=z.true
     
-    #adapt MH
+    #sample theta
+    v=sample.v(z=z,n.ac=n.ac,gamma1=gamma1)
+    theta=rep(NA,n.ac)
+    theta[1]=v[1]
+    tmp=(1-v[1])
+    for (j in 2:n.ac){
+      theta[j]=v[j]*tmp
+      tmp=tmp*(1-v[j])
+    } 
+      
     if (i<nburn & i%%adaptMH==0){
+      #adapt MH
       tmp=print.adapt(accept1z=accept1,jump1z=jump1,accept.output=adaptMH)
       jump1=tmp$jump1
+      if (jump1$phi<0.01) jump1$phi=0.01
+      cond=jump1$coord<2; jump1$coord[cond]=2
       accept1=tmp$accept1
+      
+      #re-order data from time to time according to theta (largest to smallest)
+      ordem=order(theta,decreasing=T)
+      znew=rep(NA,n.tsegm)
+      ac.coord=ac.coord[ordem,]
+      for (j in 1:n.ac){
+        cond=z==ordem[j]
+        if (sum(cond)>0) znew[cond]=j
+      }
+      z=znew 
+      theta=theta[ordem]
     }
     
     #store results
@@ -59,6 +82,7 @@ gibbs.activity.center=function(dat,grid.coord,n.ac,ac.coord.init){
     store.z[i,]=z
     store.param[i,]=phi
     store.logl[i,]=logl
+    store.theta[i,]=theta
   }
-  list(coord=store.coord,z=store.z,phi=store.param,logl=store.logl)  
+  list(coord=store.coord,z=store.z,phi=store.param,logl=store.logl,theta=store.theta)  
 }
