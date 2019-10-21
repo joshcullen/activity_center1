@@ -38,8 +38,7 @@ for (i in 1:n.tsegm){
   #draw results
   y[i,]=rmultinom(1,size=n[i],prob=prob)
 }
-image(y[z==5,])
+image(y[z==6,])
 
-setwd('U:\\GIT_models\\activity_center1')
 write.csv(y,'fake data.csv',row.names=F)
 write.csv(grid.coord,'fake data grid.csv',row.names=F)
