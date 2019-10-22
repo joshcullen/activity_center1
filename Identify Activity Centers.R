@@ -1,10 +1,11 @@
-set.seed(10)
+set.seed(1)
 
 #load libraries and read important functions
 library('Rcpp')
 library(raster)
 library(sf)
 library(ggplot2)
+library(dplyr)
 library(rnaturalearth)
 library(rnaturalearthdata)
 
@@ -16,8 +17,7 @@ source('helper functions.R')
 
 
 #load data
-setwd("~/Documents/Snail Kite Project/Data")
-dat<- read.csv("Snail Kite Gridded Data_Seg.csv", header = T, sep = ",")
+dat<- read.csv("Snail Kite Gridded Data.csv", header = T, sep = ",")
 #dat.list<- list(`1`=dat1, `12`=dat12, `19`=dat19, `27`=dat27)
 obs<- read.csv("Occupancy Matrix for all Obs and Locs.csv", header = T, sep = ",")
 
@@ -27,7 +27,12 @@ obs1.seg<- read.csv("ID1 Seg x Loc.csv", header = T, sep = ',')
 # obs27.seg<- read.csv("ID27 Seg x Loc.csv", header = T, sep = ',')
 
 
-grid.coord<- grid.summary.table(dat = dat, crs = CRS('+init=epsg:32617'))
+utm.crs<- CRS('+init=epsg:32617')
+extent<- extent(min(dat$utmlong), max(dat$utmlong), min(dat$utmlat), max(dat$utmlat))
+res<- 5000
+buffer<- 10000
+
+grid.coord<- grid.summary.table(dat=dat, crs=utm.crs, extent=extent, res=res, buffer=buffer)
 dat<- left_join(dat, grid.coord, by="grid.cell") #add gridded locs to DF
 
 
@@ -49,8 +54,8 @@ gamma1=0.1
 
 #run gibbs sampler
 options(warn=2)
-res=gibbs.activity.center(dat=obs1.seg,grid.coord=grid.coord,n.ac=n.ac,
-                          ac.coord.init=ac.coord.init,gamma1=gamma1)
+res=gibbs.activity.center(dat=obs1.seg, grid.coord=grid.coord[,-3], n.ac=n.ac,
+                          ac.coord.init=ac.coord.init, gamma1=gamma1)
 
 #plot output and look at frequency of AC visitation
 plot(res$logl,type='l')
