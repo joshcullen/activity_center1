@@ -6,6 +6,7 @@ library(raster)
 library(sf)
 library(ggplot2)
 library(dplyr)
+library(progress)
 library(rnaturalearth)
 library(rnaturalearthdata)
 
@@ -53,7 +54,10 @@ gamma1=0.1
 
 
 #run gibbs sampler
-options(warn=2)
+pb <- progress_bar$new(
+  format = " iteration (:current/:total) [:bar] :percent [Elapsed: :elapsed, Remaining: :eta]",
+  total = ngibbs, clear = FALSE, width= 100)
+
 res=gibbs.activity.center(dat=obs1.seg, grid.coord=grid.coord[,-3], n.ac=n.ac,
                           ac.coord.init=ac.coord.init, gamma1=gamma1)
 

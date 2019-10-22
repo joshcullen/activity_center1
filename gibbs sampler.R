@@ -24,7 +24,7 @@ gibbs.activity.center=function(dat,grid.coord,n.ac,ac.coord.init,gamma1){
   
   #gibbs sampler
   for (i in 1:ngibbs){
-    print(i)
+    pb$tick()  #create progress bar
     
     #sample coordinates
     tmp=sample.coord(ac.coord=ac.coord,jump=jump1$coord,dat=dat,
