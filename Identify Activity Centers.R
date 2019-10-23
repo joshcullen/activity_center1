@@ -78,20 +78,23 @@ fl<- sf::st_transform(fl, crs = "+init=epsg:32617") #change projection to UTM 17
 dat1<- dat %>% filter(id == 1)
 dat1<- left_join(dat1, z, by = "time.seg")
 
-ac.coords<- matrix(NA, 37, 2)
+ac.coords<- matrix(NA, length(unique(z$z)), 2)
+colnames(ac.coords)<- c("x","y")
 tmp<- res$coord[ngibbs,]
 
-for (i in 1:37) {
-  ac.coords[i,]<- c(tmp[i], tmp[i+37])
+for (i in 1:length(unique(z$z))) {
+  ac.coords[i,]<- c(tmp[i], tmp[i+n.ac])
 } 
+
+ac.coords<- data.frame(ac.coords, ac=1:length(unique(z$z)))
 
 
 ggplot() +
   geom_sf(data = fl) +
   coord_sf(xlim = c(min(dat$utmlong-20000), max(dat$utmlong+20000)),
            ylim = c(min(dat$utmlat-20000), max(dat$utmlat+20000)), expand = FALSE) +
-  geom_point(data = dat1, aes(x, y, color=z), size=1) +
-  geom_point() +
+  geom_point(data = dat1, aes(utmlong, utmlat, color=z), size=0.5) +
+  geom_point(data = ac.coords, aes(x, y, color = ac), size = 4, pch = 1, stroke = 1) +
   scale_color_viridis_c() +
   labs(x = "Easting", y = "Northing") +
   theme_bw()
