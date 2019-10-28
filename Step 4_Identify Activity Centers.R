@@ -19,14 +19,7 @@ source('helper functions.R')
 
 #load data
 dat<- read.csv("Snail Kite Gridded Data.csv", header = T, sep = ",")
-#dat.list<- list(`1`=dat1, `12`=dat12, `19`=dat19, `27`=dat27)
-obs<- read.csv("Occupancy Matrix for all Obs and Locs.csv", header = T, sep = ",")
-
-obs1.seg<- read.csv("ID1 Seg x Loc.csv", header = T, sep = ',')
-# obs12.seg<- read.csv("ID12 Seg x Loc.csv", header = T, sep = ',')
-# obs19.seg<- read.csv("ID19 Seg x Loc.csv", header = T, sep = ',')
-# obs27.seg<- read.csv("ID27 Seg x Loc.csv", header = T, sep = ',')
-
+obs<- get.summary.stats_obs(dat)
 
 utm.crs<- CRS('+init=epsg:32617')
 extent<- extent(min(dat$utmlong), max(dat$utmlong), min(dat$utmlat), max(dat$utmlat))
@@ -58,43 +51,75 @@ pb <- progress_bar$new(
   format = " iteration (:current/:total) [:bar] :percent [Elapsed: :elapsed, Remaining: :eta]",
   total = ngibbs, clear = FALSE, width= 100)
 
-res=gibbs.activity.center(dat=obs1.seg, grid.coord=grid.coord[,-3], n.ac=n.ac,
+res=gibbs.activity.center(dat=obs[,-1], grid.coord=grid.coord[,-3], n.ac=n.ac,
                           ac.coord.init=ac.coord.init, gamma1=gamma1)
 
 #plot output and look at frequency of AC visitation
 plot(res$logl,type='l')
 plot(res$phi,type='l')
 
-z=data.frame(z=res$z[ngibbs,], time.seg = 1:nrow(obs1.seg))
-table(z$z)
+ac<- data.frame(ac=res$z[ngibbs,])
+table(ac$ac)
+obs<- cbind(ac, obs)
 
-## map
+############################
+### Add ACs to Dataframe ###
+############################
+
+obs1<- obs %>% filter(id == 1) %>% mutate(time.seg = 1:nrow(.)) %>% dplyr::select(ac, time.seg)
+obs12<- obs %>% filter(id == 12) %>% mutate(time.seg = 1:nrow(.)) %>% dplyr::select(ac, time.seg)
+obs19<- obs %>% filter(id == 19) %>% mutate(time.seg = 1:nrow(.)) %>% dplyr::select(ac, time.seg)
+obs27<- obs %>% filter(id == 27) %>% mutate(time.seg = 1:nrow(.)) %>% dplyr::select(ac, time.seg)
+
+dat1<- dat %>% filter(id == 1) %>% left_join(obs1, by = "time.seg")
+dat12<- dat %>% filter(id == 12) %>% left_join(obs12, by = "time.seg")
+dat19<- dat %>% filter(id == 19) %>% left_join(obs19, by = "time.seg")
+dat27<- dat %>% filter(id == 27) %>% left_join(obs27, by = "time.seg")
+
+dat<- rbind(dat1, dat12, dat19, dat27)
+
+#Calculate number of obs per AC
+dat %>% filter(id==1) %>% dplyr::select(ac) %>% table()
+dat %>% filter(id==12) %>% dplyr::select(ac) %>% table()
+dat %>% filter(id==19) %>% dplyr::select(ac) %>% table()
+dat %>% filter(id==27) %>% dplyr::select(ac) %>% table()
+
+
+
+## Map
 
 #Load world map data
 usa <- ne_states(country = "United States of America", returnclass = "sf")
 fl<- usa %>% filter(name == "Florida")
 fl<- sf::st_transform(fl, crs = "+init=epsg:32617") #change projection to UTM 17N
 
-dat1<- dat %>% filter(id == 1)
-dat1<- left_join(dat1, z, by = "time.seg")
-
-ac.coords<- matrix(NA, length(unique(z$z)), 2)
+ac.coords<- matrix(NA, length(unique(ac$ac)), 2)
 colnames(ac.coords)<- c("x","y")
 tmp<- res$coord[ngibbs,]
 
-for (i in 1:length(unique(z$z))) {
-  ac.coords[i,]<- c(tmp[i], tmp[i+n.ac])
+for (i in 1:length(unique(ac$ac))) {
+  ac.coords[i,]<- round(c(tmp[i], tmp[i+n.ac]), 0)
 } 
 
-ac.coords<- data.frame(ac.coords, ac=1:length(unique(z$z)))
+ac.coords<- data.frame(ac.coords, ac=1:length(unique(ac$ac)))
 
 
 ggplot() +
   geom_sf(data = fl) +
   coord_sf(xlim = c(min(dat$utmlong-20000), max(dat$utmlong+20000)),
            ylim = c(min(dat$utmlat-20000), max(dat$utmlat+20000)), expand = FALSE) +
-  geom_point(data = dat1, aes(utmlong, utmlat, color=z), size=0.5) +
+  geom_point(data = dat, aes(utmlong, utmlat, color=ac), size=0.5, alpha = 0.6) +
   geom_point(data = ac.coords, aes(x, y, color = ac), size = 4, pch = 1, stroke = 1) +
   scale_color_viridis_c() +
   labs(x = "Easting", y = "Northing") +
   theme_bw()
+
+
+###################
+### Save Output ###
+###################
+
+setwd("~/Documents/Snail Kite Project/Data/R Scripts/cluster_tsegments_loc")
+
+write.csv(ac.coords, "Activity Center Coordinates.csv", row.names = F)
+write.csv(dat, "Snail Kite Gridded Data_AC.csv", row.names = F)
