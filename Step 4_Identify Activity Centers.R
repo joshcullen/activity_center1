@@ -110,7 +110,6 @@ ggplot() +
   labs(x="Easting", y="Northing") +
   scale_color_manual("", values = c("steelblue","firebrick"))
 
-
 # ACs and snail kite locs
 ggplot() +
   geom_sf(data = fl) +
