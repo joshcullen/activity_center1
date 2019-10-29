@@ -6,6 +6,7 @@ library(raster)
 library(sf)
 library(ggplot2)
 library(dplyr)
+library(viridis)
 library(progress)
 library(rnaturalearth)
 library(rnaturalearthdata)
@@ -32,7 +33,12 @@ dat<- left_join(dat, grid.coord, by="grid.cell") #add gridded locs to DF
 
 #Define initial activity centers (obs > 100)
 tmp<- which(apply(obs[,-1], 2, sum) > 100)
+nobs<- colSums(obs[,tmp+1])
 ac.coord.init<- grid.coord[tmp,-3]
+ac.coord.init<- cbind(ac.coord.init, nobs)
+
+#Lowest 20 of 37 initial ACs
+ac.coord.init2<- arrange(ac.coord.init, nobs) %>% slice(n=1:20)
 
 
 #########################
@@ -42,7 +48,7 @@ ac.coord.init<- grid.coord[tmp,-3]
 #basic setup
 ngibbs=1000
 nburn=ngibbs/2
-n.ac=nrow(ac.coord.init)
+n.ac=nrow(ac.coord.init2)
 gamma1=0.1
 
 
@@ -52,7 +58,7 @@ pb <- progress_bar$new(
   total = ngibbs, clear = FALSE, width= 100)
 
 res=gibbs.activity.center(dat=obs[,-1], grid.coord=grid.coord[,-3], n.ac=n.ac,
-                          ac.coord.init=ac.coord.init, gamma1=gamma1)
+                          ac.coord.init=ac.coord.init2[,-3], gamma1=gamma1)
 
 #plot output and look at frequency of AC visitation
 plot(res$logl,type='l')
@@ -105,10 +111,11 @@ ac.coords<- data.frame(ac.coords, ac=1:length(unique(ac$ac)))
 
 # ACs and initial values
 ggplot() +
-  geom_point(data = ac.coord.init, aes(x, y, color = "Initial Values"), size = 3, alpha = 0.6) +
-  geom_point(data = ac.coords, aes(x, y, color = "Modeled ACs"), size = 3, alpha = 0.6) +
+  geom_point(data = ac.coord.init, aes(x, y, color = "A (initial: n=37)"), size = 3) +
+  geom_point(data = ac.coord.init, aes(x, y, color = "B (initial: n=20)"), size = 3, pch = 1) +
+  geom_point(data = ac.coords, aes(x, y, color = "C (model: n=20)"), size = 3, alpha = 0.5) +
   labs(x="Easting", y="Northing") +
-  scale_color_manual("", values = c("steelblue","firebrick"))
+  scale_color_manual("", values = c("grey40",viridis(n=5)[c(3,5)]))
 
 # ACs and snail kite locs
 ggplot() +
@@ -128,5 +135,7 @@ ggplot() +
 
 setwd("~/Documents/Snail Kite Project/Data/R Scripts/cluster_tsegments_loc")
 
-write.csv(ac.coords, "Activity Center Coordinates.csv", row.names = F)
-write.csv(dat, "Snail Kite Gridded Data_AC.csv", row.names = F)
+# write.csv(ac.coords, "Activity Center Coordinates.csv", row.names = F)
+# write.csv(dat, "Snail Kite Gridded Data_AC.csv", row.names = F)
+
+write.csv(ac.coords, "Activity Center Coordinates_reduced.csv", row.names = F)
